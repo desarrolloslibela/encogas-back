@@ -4,5 +4,6 @@ public enum PuntoOperativoTipo {
     CASA_CENTRAL,
     PLANTA,
     DEPOSITO,
+    VEHICULO,
     OTRO
 }
