@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: local
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+encogas:
+  security:
+    jwt:
+      issuer: "encogas"
+      # IMPORTANTE: reemplazá este secret en prod (mínimo 32 chars)
+      secret: "CHANGE_ME_SUPER_SECRET_32CHARS_MINIMUM________"
+      accessTokenMinutes: 120
