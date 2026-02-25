@@ -140,4 +140,77 @@ public class StockService {
 
         movRepo.save(mov);
     }
+
+    @Transactional
+    public void transferir(Long puntoOrigenId, Long puntoDestinoId, Long tipoEnvaseId, int deltaLlenos, int deltaVacios,
+                           MovimientoStockTipo tipoMov, String motivo, String referencia) {
+        var u = currentUserService.requireUsuario();
+        Long empresaId = u.getEmpresa().getId();
+
+        if (deltaLlenos < 0 || deltaVacios < 0) throw new BadRequestException("Delta no puede ser negativo");
+
+        // Origen
+        StockEnvase origen = stockRepo.findForUpdate(empresaId, puntoOrigenId, tipoEnvaseId)
+                .orElseGet(() -> {
+                    StockEnvase s = new StockEnvase();
+                    s.setEmpresa(u.getEmpresa());
+                    s.setPuntoOperativo(poRepo.getReferenceById(puntoOrigenId));
+                    s.setTipoEnvase(teRepo.getReferenceById(tipoEnvaseId));
+                    s.setLlenos(0);
+                    s.setVacios(0);
+                    return stockRepo.save(s);
+                });
+
+        // Validar stock suficiente
+        if (origen.getLlenos() < deltaLlenos || origen.getVacios() < deltaVacios) {
+            throw new BadRequestException("Stock insuficiente en origen");
+        }
+
+        origen.setLlenos(origen.getLlenos() - deltaLlenos);
+        origen.setVacios(origen.getVacios() - deltaVacios);
+        stockRepo.save(origen);
+
+        MovimientoStock movOut = new MovimientoStock();
+        movOut.setEmpresa(u.getEmpresa());
+        movOut.setPuntoOperativo(origen.getPuntoOperativo());
+        movOut.setTipoEnvase(origen.getTipoEnvase());
+        movOut.setTipo(tipoMov);
+        movOut.setMotivo(motivo);
+        movOut.setDeltaLlenos(-deltaLlenos);
+        movOut.setDeltaVacios(-deltaVacios);
+        movOut.setSaldoLlenos(origen.getLlenos());
+        movOut.setSaldoVacios(origen.getVacios());
+        movOut.setReferencia(referencia);
+        movRepo.save(movOut);
+
+        // Destino
+        StockEnvase destino = stockRepo.findForUpdate(empresaId, puntoDestinoId, tipoEnvaseId)
+                .orElseGet(() -> {
+                    StockEnvase s = new StockEnvase();
+                    s.setEmpresa(u.getEmpresa());
+                    s.setPuntoOperativo(poRepo.getReferenceById(puntoDestinoId));
+                    s.setTipoEnvase(teRepo.getReferenceById(tipoEnvaseId));
+                    s.setLlenos(0);
+                    s.setVacios(0);
+                    return stockRepo.save(s);
+                });
+
+        destino.setLlenos(destino.getLlenos() + deltaLlenos);
+        destino.setVacios(destino.getVacios() + deltaVacios);
+        stockRepo.save(destino);
+
+        MovimientoStock movIn = new MovimientoStock();
+        movIn.setEmpresa(u.getEmpresa());
+        movIn.setPuntoOperativo(destino.getPuntoOperativo());
+        movIn.setTipoEnvase(destino.getTipoEnvase());
+        movIn.setTipo(tipoMov);
+        movIn.setMotivo(motivo);
+        movIn.setDeltaLlenos(deltaLlenos);
+        movIn.setDeltaVacios(deltaVacios);
+        movIn.setSaldoLlenos(destino.getLlenos());
+        movIn.setSaldoVacios(destino.getVacios());
+        movIn.setReferencia(referencia);
+        movRepo.save(movIn);
+    }
+
 }
