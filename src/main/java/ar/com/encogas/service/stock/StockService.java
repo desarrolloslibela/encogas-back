@@ -142,6 +142,62 @@ public class StockService {
     }
 
     @Transactional
+    public void ajustarDelta(Long puntoOperativoId, Long tipoEnvaseId, int deltaLlenos, int deltaVacios,
+                             MovimientoStockTipo tipoMov, String motivo, String referencia) {
+
+        var u = currentUserService.requireUsuario();
+        Long empresaId = u.getEmpresa().getId();
+
+        // Validar PO y TipoEnvase pertenezcan a empresa (igual que ya hacés en ajustar(req))
+        PuntoOperativo po = poRepo.findByIdAndEmpresa_Id(puntoOperativoId, empresaId)
+                .orElseThrow(() -> new NotFoundException("Punto Operativo no encontrado"));
+
+        TipoEnvase te = teRepo.findByIdAndEmpresa_Id(tipoEnvaseId, empresaId)
+                .orElseThrow(() -> new NotFoundException("Tipo de envase no encontrado"));
+
+        // Bloqueo fila stock (o creamos si no existe)
+        StockEnvase stock = stockRepo.findForUpdate(empresaId, po.getId(), te.getId())
+                .orElseGet(() -> {
+                    StockEnvase s = new StockEnvase();
+                    s.setEmpresa(u.getEmpresa());
+                    s.setPuntoOperativo(po);
+                    s.setTipoEnvase(te);
+                    s.setLlenos(0);
+                    s.setVacios(0);
+                    return stockRepo.save(s);
+                });
+
+        int nuevoLlenos = stock.getLlenos() + deltaLlenos;
+        int nuevoVacios = stock.getVacios() + deltaVacios;
+
+        if (nuevoLlenos < 0 || nuevoVacios < 0) {
+            throw new BadRequestException("Stock insuficiente");
+        }
+
+        if (deltaLlenos == 0 && deltaVacios == 0) {
+            throw new BadRequestException("El ajuste no genera cambios");
+        }
+
+        stock.setLlenos(nuevoLlenos);
+        stock.setVacios(nuevoVacios);
+        stockRepo.save(stock);
+
+        MovimientoStock mov = new MovimientoStock();
+        mov.setEmpresa(u.getEmpresa());
+        mov.setPuntoOperativo(po);
+        mov.setTipoEnvase(te);
+        mov.setTipo(tipoMov);
+        mov.setMotivo(motivo);
+        mov.setDeltaLlenos(deltaLlenos);
+        mov.setDeltaVacios(deltaVacios);
+        mov.setSaldoLlenos(nuevoLlenos);
+        mov.setSaldoVacios(nuevoVacios);
+        mov.setReferencia(referencia);
+
+        movRepo.save(mov);
+    }
+
+    @Transactional
     public void transferir(Long puntoOrigenId, Long puntoDestinoId, Long tipoEnvaseId, int deltaLlenos, int deltaVacios,
                            MovimientoStockTipo tipoMov, String motivo, String referencia) {
         var u = currentUserService.requireUsuario();

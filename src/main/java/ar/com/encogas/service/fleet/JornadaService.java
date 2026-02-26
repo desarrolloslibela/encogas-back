@@ -15,6 +15,8 @@ import ar.com.encogas.security.CurrentUserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ar.com.encogas.domain.security.Rol;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 
 
 import java.util.List;
@@ -102,6 +104,23 @@ public class JornadaService {
         Long empresaId = u.getEmpresa().getId();
         return jornadaRepo.findByIdAndEmpresa_Id(jornadaId, empresaId)
                 .orElseThrow(() -> new NotFoundException("Jornada no encontrada"));
+    }
+
+    @Transactional(readOnly = true)
+    public JornadaResponse miAbierta() {
+        var u = currentUser.requireUsuario();
+        Long empresaId = u.getEmpresa().getId();
+
+        // Validación de consistencia: debería haber 0 o 1
+        var abiertas = jornadaRepo.findByEmpresa_IdAndChofer_IdAndEstado(empresaId, u.getId(), JornadaEstado.ABIERTA);
+        if (abiertas.isEmpty()) {
+            throw new NotFoundException("No hay jornada ABIERTA para el chofer");
+        }
+        if (abiertas.size() > 1) {
+            throw new BadRequestException("Inconsistencia: hay más de una jornada ABIERTA para el chofer");
+        }
+
+        return toResp(abiertas.get(0));
     }
 
     private JornadaResponse toResp(Jornada j) {

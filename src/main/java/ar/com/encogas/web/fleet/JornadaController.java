@@ -5,6 +5,8 @@ import ar.com.encogas.dto.fleet.JornadaResponse;
 import ar.com.encogas.service.fleet.JornadaService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+
 
 import java.util.List;
 
@@ -24,4 +26,10 @@ public class JornadaController {
 
     @PatchMapping("/{id}/cerrar")
     public void cerrar(@PathVariable Long id) { service.cerrar(id); }
+
+    @GetMapping("/mi-abierta")
+    @PreAuthorize("hasRole('DRIVER')")
+    public JornadaResponse miAbierta() {
+        return service.miAbierta();
+    }
 }

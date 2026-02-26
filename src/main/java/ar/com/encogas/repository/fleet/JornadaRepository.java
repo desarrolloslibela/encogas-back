@@ -14,4 +14,11 @@ public interface JornadaRepository extends JpaRepository<Jornada, Long> {
     boolean existsByEmpresa_IdAndFechaAndVehiculo_IdAndEstado(Long empresaId, LocalDate fecha, Long vehiculoId, JornadaEstado estado);
 
     List<Jornada> findTop50ByEmpresa_IdOrderByFechaDescCreatedAtDesc(Long empresaId);
+
+    List<Jornada> findByEmpresa_IdAndChofer_IdAndEstado(Long empresaId, Long choferId, JornadaEstado estado);
+
+    Optional<Jornada> findTop1ByEmpresa_IdAndChofer_IdAndEstadoOrderByFechaDescCreatedAtDesc(
+            Long empresaId, Long choferId, JornadaEstado estado
+    );
+
 }
